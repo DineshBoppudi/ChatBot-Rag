@@ -88,7 +88,9 @@ function UploadPage() {
       }
     } catch (error: any) {
       console.error(error);
-      setMessage(error?.response?.data?.message || "Upload failed");
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.message || (error?.response?.data ? JSON.stringify(error.response.data) : null) || error.message || 'Upload failed';
+      const status = error?.response?.status ? ` (${error.response.status})` : '';
+      setMessage(`Upload failed${status}: ${serverMsg}`);
     } finally {
       setUploading(false);
     }
