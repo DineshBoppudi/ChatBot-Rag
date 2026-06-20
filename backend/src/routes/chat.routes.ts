@@ -1,13 +1,19 @@
 import { Router } from "express";
-import { openai } from "../services/openai";
+import { groq } from "../services/groq";
 import { pool } from "../db/database";
 
 const router = Router();
 
 router.post("/", async (req, res) => {
   try {
+    console.log("========== CHAT REQUEST ==========");
+    console.log("BODY:", req.body);
+
     const question = req.body?.question;
     const dataset = req.body?.dataset;
+
+    console.log("QUESTION:", question);
+    console.log("DATASET:", dataset);
 
     if (!question) {
       return res.status(400).json({
@@ -23,116 +29,92 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Get table columns dynamically
-    const columnsResult = await pool.query(`
+    const columnsResult = await pool.query(
+      `
       SELECT column_name
       FROM information_schema.columns
-      WHERE table_name = '${dataset}'
+      WHERE table_name = $1
       ORDER BY ordinal_position
-    `);
+      `,
+      [dataset]
+    );
+
+    console.log("COLUMNS:", columnsResult.rows);
 
     const columns = columnsResult.rows
-      .map((col) => col.column_name)
-      .join("\n");
+      .map((c) => c.column_name)
+      .join(", ");
 
     const prompt = `
-You are an expert PostgreSQL SQL generator.
+Generate ONLY PostgreSQL SELECT query.
 
-Table Name:
+Table:
 ${dataset}
 
 Columns:
 ${columns}
 
-Important Rules:
-- Return ONLY SQL
-- Generate PostgreSQL SQL
-- Generate SELECT queries only
-- Never generate INSERT
-- Never generate UPDATE
-- Never generate DELETE
-- Never generate DROP
-- Never generate ALTER
-- Do not use markdown
-
 Question:
 ${question}
+
+Rules:
+- Return SQL only
+- SELECT only
+- No markdown
+- No explanation
+- Use LIMIT 20
 `;
 
-   const completion =
-  await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
+    console.log("SENDING TO GROQ...");
 
-const sql =
-  completion.choices[0].message.content
-    ?.replace(/```sql/g, "")
-    .replace(/```/g, "")
-    .trim() || "";
+    const sqlResponse =
+      await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
 
-    console.log("\nGenerated SQL:");
+    const sql =
+      sqlResponse.choices[0].message.content?.trim() || "";
+
+    console.log("GENERATED SQL:");
     console.log(sql);
 
     if (!sql.toLowerCase().startsWith("select")) {
       return res.status(400).json({
         success: false,
-        message: "Only SELECT queries are allowed",
+        message: "Groq did not return a SELECT query",
+        sql,
       });
     }
 
     const queryResult = await pool.query(sql);
 
-    const answerPrompt = `
-You are a professional data analyst.
+    console.log(
+      "ROWS RETURNED:",
+      queryResult.rows.length
+    );
 
-User Question:
-${question}
-
-Query Result:
-${JSON.stringify(queryResult.rows)}
-
-Give a short, direct answer.
-
-Do not mention SQL.
-`;
-
-    const answerCompletion =
-  await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "user",
-        content: answerPrompt,
-      },
-    ],
-  });
-
-const answer =
-  answerCompletion.choices[0]
-    .message.content || "";
-
-    res.json({
+    return res.json({
       success: true,
-      question,
-      dataset,
       sql,
-      answer,
+      answer: `Returned ${queryResult.rows.length} rows`,
       rows: queryResult.rows,
     });
 
-  } catch (error) {
-    console.error("Chat Error:", error);
+  } catch (error: any) {
+    console.error("CHAT ERROR:");
+    console.error(error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to process question",
-      error: String(error),
+      message: "Chat failed",
+      error: error.message,
     });
   }
 });
