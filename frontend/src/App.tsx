@@ -8,7 +8,6 @@ import MainLayout from "./layouts/MainLayout";
 
 import DashboardPage from "./pages/DashboardPage";
 import UploadPage from "./pages/UploadPage";
-import DatasetsPage from "./pages/DatasetsPage";
 import ChatPage from "./pages/ChatPage";
 
 function App() {
@@ -24,11 +23,6 @@ function App() {
           <Route
             path="/upload"
             element={<UploadPage />}
-          />
-
-          <Route
-            path="/datasets"
-            element={<DatasetsPage />}
           />
 
           <Route

@@ -39,16 +39,6 @@ function Sidebar() {
         </NavLink>
 
         <NavLink
-          to="/datasets"
-          className={({ isActive }) =>
-            `sidebar-link px-3 py-2 rounded-md ${isActive ? 'active' : ''}`
-          }
-        >
-          <FaDatabase />
-          <span>Datasets</span>
-        </NavLink>
-
-        <NavLink
           to="/chat"
           className={({ isActive }) =>
             `sidebar-link px-3 py-2 rounded-md ${isActive ? 'active' : ''}`

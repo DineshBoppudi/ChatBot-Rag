@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { api } from "../services/api";
 import Button from "../components/Button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function parseCSVPreview(text: string, maxRows = 5) {
   const lines = text.split(/\r?\n/).filter(Boolean);
@@ -20,6 +20,7 @@ function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
   const [progress, setProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const navigate = useNavigate();
 
   const readPreview = useCallback((f: File) => {
     const reader = new FileReader();
@@ -73,9 +74,18 @@ function UploadPage() {
       setDatasetInfo(response.data || null);
       setMessage("Dataset uploaded successfully.");
 
+      // refresh server-side dataset list (best effort)
       try {
         await api.post("/api/datasets/refresh");
       } catch (e) {}
+
+      // navigate to dashboard with the uploaded dataset so visuals render immediately
+      try {
+        const table = response.data?.table_name || response.data?.name;
+        if (table) navigate(`/?dataset=${encodeURIComponent(table)}`);
+      } catch (e) {
+        // ignore navigation errors
+      }
     } catch (error: any) {
       console.error(error);
       setMessage(error?.response?.data?.message || "Upload failed");
@@ -92,8 +102,8 @@ function UploadPage() {
           <p className="text-sm text-gray-500 mt-1">Upload CSV files to create datasets for analysis.</p>
         </div>
         <div>
-          <Link to="/datasets">
-            <Button variant="secondary">View Datasets</Button>
+          <Link to="/">
+            <Button variant="secondary">Dashboard</Button>
           </Link>
         </div>
       </div>
@@ -183,7 +193,7 @@ function UploadPage() {
             {datasetInfo.row_count && (<div className="text-sm text-gray-700">Rows: {datasetInfo.row_count}</div>)}
 
             <div className="mt-3 flex gap-3">
-              <Link to="/datasets"><Button variant="secondary">View Datasets</Button></Link>
+              <Link to="/"><Button variant="secondary">Dashboard</Button></Link>
               <Link to={`/?dataset=${encodeURIComponent(datasetInfo.table_name || datasetInfo.name || '')}`}><Button>Open Dashboard</Button></Link>
             </div>
           </div>

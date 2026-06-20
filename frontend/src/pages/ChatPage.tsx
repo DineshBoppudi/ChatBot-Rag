@@ -14,7 +14,6 @@ function ChatPage() {
   const [loading, setLoading] = useState(false);
 
   const [dataset, setDataset] = useState("");
-  const [datasets, setDatasets] = useState<any[]>([]);
 
   const [sql, setSql] = useState("");
   const [rowCount, setRowCount] = useState(0);
@@ -23,26 +22,30 @@ function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadDatasets();
+    // pick dataset from query param so chat focuses on uploaded dataset
+    const params = new URLSearchParams(window.location.search);
+    const ds = params.get('dataset');
+    if (ds) {
+      setDataset(ds);
+      // initial assistant prompt to ask guiding questions about the uploaded dataset
+      setMessages([
+        {
+          role: 'assistant',
+          content: `Dataset "${ds}" is ready. I can help summarize columns, detect missing values, generate SQL queries, or create charts. What would you like to explore? Suggestions: (1) Summary, (2) Top rows, (3) Missing values, (4) Plot a numeric column.`
+        }
+      ]);
+    } else {
+      setMessages([
+        { role: 'assistant', content: 'No dataset selected — upload a dataset from the Upload page and open the Dashboard to begin analysis.' }
+      ]);
+    }
+
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, results]);
-
-  const loadDatasets = async () => {
-    try {
-      const response = await api.get("/api/datasets");
-
-      setDatasets(response.data || []);
-
-      if (response.data?.length > 0) {
-        setDataset(response.data[0].table_name);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
   const handleAsk = async () => {
     if (!question.trim()) return;
@@ -88,17 +91,11 @@ function ChatPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <select
-            value={dataset}
-            onChange={(e) => setDataset(e.target.value)}
-            className="border px-3 py-2 rounded-md bg-white"
-          >
-            {datasets.map((item) => (
-              <option key={item.table_name} value={item.table_name}>
-                {item.table_name}
-              </option>
-            ))}
-          </select>
+          {dataset ? (
+            <div className="text-sm text-slate-600">Dataset: <span className="font-medium">{dataset}</span></div>
+          ) : (
+            <div className="text-sm text-slate-500">No dataset selected</div>
+          )}
         </div>
       </div>
 
