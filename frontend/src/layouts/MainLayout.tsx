@@ -7,16 +7,16 @@ type Props = {
 
 function MainLayout({ children }: Props) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-slate-50">
+
       <Sidebar />
 
-      <main className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="card p-6 min-h-[80vh]">
-            {children}
-          </div>
+      <main className="flex-1 overflow-auto">
+       <div className="p-5">
+          {children}
         </div>
       </main>
+
     </div>
   );
 }

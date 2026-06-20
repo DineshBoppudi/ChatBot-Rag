@@ -5,7 +5,6 @@ import {
 } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
-
 import DashboardPage from "./pages/DashboardPage";
 import UploadPage from "./pages/UploadPage";
 import ChatPage from "./pages/ChatPage";
