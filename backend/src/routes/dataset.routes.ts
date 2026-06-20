@@ -6,25 +6,35 @@ const router = Router();
 // Return dataset metadata with small preview (if available)
 router.get("/", async (req, res) => {
   try {
-    const meta = await pool.query(`SELECT name, table_name, row_count, created_at FROM datasets ORDER BY created_at DESC`);
-    const out: any[] = [];
+    let out: any[] = [];
 
-    for (const d of meta.rows) {
-      let sample: any[] = [];
-      try {
-        const sampleQ = await pool.query(`SELECT * FROM "${d.table_name}" LIMIT 5`);
-        sample = sampleQ.rows;
-      } catch (e) {
-        // table may not exist or no permission — ignore
-        sample = [];
+    try {
+      // Preferred: use datasets metadata table if available
+      const meta = await pool.query(`SELECT name, table_name, row_count, created_at FROM datasets ORDER BY created_at DESC`);
+      for (const d of meta.rows) {
+        let sample: any[] = [];
+        try {
+          const sampleQ = await pool.query(`SELECT * FROM "${d.table_name}" LIMIT 5`);
+          sample = sampleQ.rows;
+        } catch (e) {
+          sample = [];
+        }
+        out.push({
+          name: d.name,
+          table_name: d.table_name,
+          row_count: d.row_count,
+          uploaded_at: d.created_at,
+          sample,
+        });
       }
-      out.push({
-        name: d.name,
-        table_name: d.table_name,
-        row_count: d.row_count,
-        uploaded_at: d.created_at,
-        sample,
-      });
+    } catch (metaErr) {
+      // Fallback: if datasets metadata table isn't present or has different schema,
+      // list public tables from information_schema and return basic info so frontend still works.
+      console.warn('datasets metadata not available, falling back to information_schema:', metaErr.message);
+      const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`);
+      for (const t of tables.rows) {
+        out.push({ name: t.table_name, table_name: t.table_name, row_count: null, uploaded_at: null, sample: [] });
+      }
     }
 
     res.json(out);
