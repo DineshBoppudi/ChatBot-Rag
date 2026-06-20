@@ -21,7 +21,7 @@ export async function handleUpload(req: Request, res: Response) {
     // cleanup uploaded file
     try { fs.unlinkSync(filePath); } catch (e) { log.error('cleanup failed', e); }
 
-    res.json({ dataset: originalName, table: result.tableName, rowCount: result.rowCount });
+    res.json({ dataset: originalName, name: originalName, table_name: result.tableName, table: result.tableName, row_count: result.rowCount, rowCount: result.rowCount });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Upload failed' });
   }
