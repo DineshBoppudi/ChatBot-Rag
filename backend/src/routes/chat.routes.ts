@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { model } from "../services/gemini";
+import { openai } from "../services/openai";
 import { pool } from "../db/database";
 
 const router = Router();
@@ -59,13 +59,22 @@ Question:
 ${question}
 `;
 
-    const result = await model.generateContent(prompt);
+   const completion =
+  await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
 
-    const sql = result.response
-      .text()
-      .replace(/```sql/g, "")
-      .replace(/```/g, "")
-      .trim();
+const sql =
+  completion.choices[0].message.content
+    ?.replace(/```sql/g, "")
+    .replace(/```/g, "")
+    .trim() || "";
 
     console.log("\nGenerated SQL:");
     console.log(sql);
@@ -93,11 +102,20 @@ Give a short, direct answer.
 Do not mention SQL.
 `;
 
-    const answerResult =
-      await model.generateContent(answerPrompt);
+    const answerCompletion =
+  await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "user",
+        content: answerPrompt,
+      },
+    ],
+  });
 
-    const answer =
-      answerResult.response.text();
+const answer =
+  answerCompletion.choices[0]
+    .message.content || "";
 
     res.json({
       success: true,

@@ -5,7 +5,8 @@ import uploadRoutes from "./routes/upload.routes";
 import datasetRoutes from "./routes/dataset.routes";
 import chatRoutes from "./routes/chat.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
-
+import documentRoutes from "./routes/document.routes";
+import embeddingRoutes from "./routes/embedding.routes";
 const app = express();
 
 app.use(cors());
@@ -34,6 +35,8 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/datasets", datasetRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/embeddings", embeddingRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   FaChartBar,
   FaUpload,
@@ -8,45 +8,57 @@ import {
 
 function Sidebar() {
   return (
-    <div className="w-64 bg-slate-900 text-white min-h-screen p-5">
-      <h1 className="text-2xl font-bold mb-10">
-        AI Data Analyst
-      </h1>
+    <aside className="w-72 sidebar min-h-screen p-6">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold">AI</div>
+        <div>
+          <h1 className="text-lg font-semibold">AI Data Analyst</h1>
+          <p className="text-sm text-muted">Insights · Datasets · Chat</p>
+        </div>
+      </div>
 
-      <nav className="flex flex-col gap-4">
-        <Link
+      <nav className="flex flex-col gap-2">
+        <NavLink
           to="/"
-          className="flex items-center gap-3 p-3 rounded hover:bg-slate-700"
+          className={({ isActive }) =>
+            `sidebar-link px-3 py-2 rounded-md ${isActive ? 'active' : ''}`
+          }
         >
           <FaChartBar />
-          Dashboard
-        </Link>
+          <span>Dashboard</span>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/upload"
-          className="flex items-center gap-3 p-3 rounded hover:bg-slate-700"
+          className={({ isActive }) =>
+            `sidebar-link px-3 py-2 rounded-md ${isActive ? 'active' : ''}`
+          }
         >
           <FaUpload />
-          Upload
-        </Link>
+          <span>Upload</span>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/datasets"
-          className="flex items-center gap-3 p-3 rounded hover:bg-slate-700"
+          className={({ isActive }) =>
+            `sidebar-link px-3 py-2 rounded-md ${isActive ? 'active' : ''}`
+          }
         >
           <FaDatabase />
-          Datasets
-        </Link>
+          <span>Datasets</span>
+        </NavLink>
 
-        <Link
+        <NavLink
           to="/chat"
-          className="flex items-center gap-3 p-3 rounded hover:bg-slate-700"
+          className={({ isActive }) =>
+            `sidebar-link px-3 py-2 rounded-md ${isActive ? 'active' : ''}`
+          }
         >
           <FaRobot />
-          AI Chat
-        </Link>
+          <span>AI Chat</span>
+        </NavLink>
       </nav>
-    </div>
+    </aside>
   );
 }
 
