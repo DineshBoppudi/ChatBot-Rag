@@ -68,11 +68,11 @@ function ChatPage() {
     setLoading(true);
 
     try {
-      const response = await api.post("/api/chat", {
-        question: userQuestion,
-        dataset,
-      });
-
+     const response = await api.post("/api/chat", {
+  question: userQuestion,
+  dataset,
+  history: messages,
+});
       setSql(response.data.sql || "");
       setRowCount(response.data.rows?.length || 0);
       setResults(response.data.rows || []);
@@ -110,12 +110,10 @@ function ChatPage() {
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">
-            AI Data Analyst
-          </h1>
+         
 
           <p className="text-slate-500 mt-1">
-            Ask questions about your datasets
+          <h1> Ask questions about your datasets </h1> 
           </p>
         </div>
 

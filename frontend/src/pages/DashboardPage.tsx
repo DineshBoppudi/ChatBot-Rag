@@ -2,12 +2,20 @@ import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import Button from "../components/Button";
 import {
+  ResponsiveContainer,
   AreaChart,
   Area,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
+  Legend,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import {
@@ -30,7 +38,6 @@ function DashboardPage() {
   const [datasets, setDatasets] = useState<any[]>([]);
   const [selected, setSelected] = useState("");
   const [previewRows, setPreviewRows] = useState<any[]>([]);
-  const [numericColumn, setNumericColumn] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -66,45 +73,140 @@ function DashboardPage() {
         `/api/datasets/${encodeURIComponent(tableName)}/preview`
       );
 
-      const rows = response.data.rows || [];
-      setPreviewRows(rows);
-
-      detectNumericColumn(rows);
+      setPreviewRows(response.data.rows || []);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const detectNumericColumn = (rows: any[]) => {
-    if (!rows.length) return;
+  const chartData = () => {
+    if (!previewRows.length) return [];
 
-    const keys = Object.keys(rows[0]);
+    const columns = Object.keys(previewRows[0]);
 
-    for (const key of keys) {
-      const numeric = rows.every(
-        (r) =>
-          r[key] === null ||
-          r[key] === undefined ||
-          !isNaN(Number(r[key]))
+    let categoryColumn: string | null = null;
+    let valueColumn: string | null = null;
+
+    for (const col of columns) {
+      const numeric = previewRows.every(
+        (row) =>
+          row[col] === null ||
+          row[col] === undefined ||
+          !isNaN(Number(row[col]))
       );
 
-      if (numeric) {
-        setNumericColumn(key);
-        return;
+      if (numeric && !valueColumn) {
+        valueColumn = col;
+      }
+
+      if (!numeric && !categoryColumn) {
+        categoryColumn = col;
       }
     }
 
-    setNumericColumn(null);
-  };
+    if (!valueColumn) return [];
 
-  const chartData = () => {
-    if (!previewRows.length || !numericColumn) return [];
-
-    return previewRows.slice(0, 20).map((row, index) => ({
-      name: `${index + 1}`,
-      value: Number(row[numericColumn]) || 0,
+    return previewRows.slice(0, 15).map((row, index) => ({
+      name: categoryColumn
+        ? String(row[categoryColumn])
+        : `${index + 1}`,
+      value: Number(row[valueColumn]) || 0,
     }));
   };
+
+  const getChartType = () => {
+    const data = chartData();
+
+    if (!data.length) return "area";
+
+    const uniqueNames = new Set(data.map((d) => d.name));
+
+    if (uniqueNames.size <= 5) return "pie";
+    if (uniqueNames.size <= 15) return "bar";
+
+    return "line";
+  };
+
+  const renderChart = () => {
+    const data = chartData();
+
+    if (!data.length) {
+      return (
+        <div className="flex items-center justify-center h-full text-slate-400">
+          No chart data available
+        </div>
+      );
+    }
+
+    const chartType = getChartType();
+
+    const colors = [
+      "#4F46E5",
+      "#10B981",
+      "#F59E0B",
+      "#EF4444",
+      "#06B6D4",
+      "#8B5CF6",
+    ];
+        if (chartType === "pie") {
+      return (
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            outerRadius={70}
+            label
+          >
+            {data.map((_, index) => (
+              <Cell
+                key={index}
+                fill={colors[index % colors.length]}
+              />
+            ))}
+          </Pie>
+
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      );
+    }
+
+    if (chartType === "bar") {
+      return (
+        <BarChart data={data}>
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar
+            dataKey="value"
+            fill="#4F46E5"
+            radius={[6, 6, 0, 0]}
+          />
+        </BarChart>
+      );
+    }
+
+    return (
+      <LineChart data={data}>
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke="#4F46E5"
+          strokeWidth={3}
+        />
+      </LineChart>
+    );
+  };
+
+  const generatedSql = selected
+    ? `SELECT *
+FROM ${selected}
+LIMIT 50;`
+    : "-- No dataset selected";
 
   const insights = [
     `${stats.datasetCount} datasets available`,
@@ -114,126 +216,87 @@ function DashboardPage() {
       : "Select a dataset",
   ];
 
-  const generatedSql = selected
-    ? `SELECT *
-FROM ${selected}
-LIMIT 50;`
-    : "-- No dataset selected";
-
-  const copySql = () => {
-    navigator.clipboard.writeText(generatedSql);
-  };
-
   return (
     <div className="w-full">
 
-      {/* HEADER */}
-
-      <div className="flex items-center justify-between mb-6">
-
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-xl font-semibold">
             Dashboard
           </h1>
 
-          <p className="text-slate-500 text-sm mt-1">
-            Data analytics overview
+          <p className="text-xs text-slate-500 mt-1">
+            Analytics overview
           </p>
         </div>
 
         <Button onClick={() => navigate("/upload")}>
           Upload Dataset
         </Button>
-
       </div>
 
-      {/* KPI CARDS */}
+      <div className="grid grid-cols-4 gap-3 mb-4">
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-
-        <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
-
-          <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-            <Database size={18} className="text-indigo-600" />
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
+        <div className="bg-white rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <Database size={16} />
+            <span className="text-xs text-slate-500">
               Datasets
-            </p>
-
-            <h2 className="text-2xl font-semibold">
-              {stats.datasetCount}
-            </h2>
+            </span>
           </div>
 
+          <div className="text-xl font-semibold mt-2">
+            {stats.datasetCount}
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
-
-          <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
-            <TrendingUp size={18} className="text-emerald-600" />
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
+        <div className="bg-white rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={16} />
+            <span className="text-xs text-slate-500">
               Rows
-            </p>
-
-            <h2 className="text-2xl font-semibold">
-              {stats.totalRows.toLocaleString()}
-            </h2>
+            </span>
           </div>
 
+          <div className="text-xl font-semibold mt-2">
+            {stats.totalRows.toLocaleString()}
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
-
-          <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
-            <MessageCircle size={18} className="text-purple-600" />
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">
+        <div className="bg-white rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle size={16} />
+            <span className="text-xs text-slate-500">
               AI Queries
-            </p>
-
-            <h2 className="text-2xl font-semibold">
-              {stats.totalQueries}
-            </h2>
+            </span>
           </div>
 
+          <div className="text-xl font-semibold mt-2">
+            {stats.totalQueries}
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
-
-          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
-            <FileText size={18} className="text-amber-600" />
+        <div className="bg-white rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <FileText size={16} />
+            <span className="text-xs text-slate-500">
+              Dataset
+            </span>
           </div>
 
-          <div>
-            <p className="text-xs text-slate-500">
-              Active Dataset
-            </p>
-
-            <h2 className="text-sm font-semibold truncate max-w-[140px]">
-              {selected || "None"}
-            </h2>
+          <div className="text-sm font-semibold mt-2 truncate">
+            {selected || "None"}
           </div>
-
         </div>
 
       </div>
+            <div className="grid grid-cols-12 gap-3 mb-4">
 
-      {/* CHART + INSIGHTS */}
+        <div className="col-span-8 bg-white rounded-xl p-3">
 
-      <div className="grid grid-cols-12 gap-4 mb-6">
+          <div className="flex justify-between items-center mb-3">
 
-        <div className="col-span-8 bg-white rounded-2xl p-4">
-
-          <div className="flex items-center justify-between mb-4">
-
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-sm font-semibold">
               Visualization
             </h2>
 
@@ -242,7 +305,7 @@ LIMIT 50;`
               onChange={(e) =>
                 setSelected(e.target.value)
               }
-              className="px-3 py-2 border rounded-lg text-sm"
+              className="text-xs px-2 py-1"
             >
               {datasets.map((d) => (
                 <option
@@ -256,91 +319,39 @@ LIMIT 50;`
 
           </div>
 
-          <div style={{ width: "100%", height: 260 }}>
-
-            <ResponsiveContainer>
-
-              <AreaChart data={chartData()}>
-
-                <defs>
-                  <linearGradient
-                    id="colorValue"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="#4F46E5"
-                      stopOpacity={0.3}
-                    />
-
-                    <stop
-                      offset="95%"
-                      stopColor="#4F46E5"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#4F46E5"
-                  fill="url(#colorValue)"
-                />
-
-              </AreaChart>
-
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              {renderChart()}
             </ResponsiveContainer>
-
           </div>
 
         </div>
 
-        <div className="col-span-4 bg-white rounded-2xl p-4">
+        <div className="col-span-4 bg-white rounded-xl p-3">
 
-          <div className="flex items-center gap-2 mb-4">
-
-            <Sparkles
-              size={18}
-              className="text-emerald-600"
-            />
-
-            <h2 className="text-lg font-semibold">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles size={16} />
+            <h2 className="text-sm font-semibold">
               AI Insights
             </h2>
-
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
 
-            {insights.map((insight, index) => (
+            {insights.map((item, index) => (
               <div
                 key={index}
-                className="bg-emerald-50 rounded-xl p-3 flex gap-2"
+                className="bg-emerald-50 rounded-lg p-2 flex gap-2"
               >
-                <CheckCircle2
-                  size={16}
-                  className="text-emerald-600 shrink-0 mt-0.5"
-                />
-
-                <p className="text-sm">
-                  {insight}
-                </p>
-
+                <CheckCircle2 size={14} />
+                <p className="text-xs">{item}</p>
               </div>
             ))}
 
           </div>
 
           <Button
-            className="w-full mt-4"
+            className="w-full mt-3"
             onClick={() => navigate("/chat")}
           >
             Ask AI
@@ -350,103 +361,88 @@ LIMIT 50;`
 
       </div>
 
-      {/* RESULTS + SQL */}
+      <div className="bg-white rounded-xl p-3 mb-4">
 
-      <div className="grid grid-cols-12 gap-4">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-sm font-semibold">
+            Results Preview
+          </h2>
 
-        <div className="col-span-8 bg-white rounded-2xl p-4">
+          <span className="text-xs text-slate-500">
+            {previewRows.length} rows
+          </span>
+        </div>
 
-          <div className="flex justify-between items-center mb-4">
+        <div className="overflow-auto max-h-[180px]">
 
-            <h2 className="text-lg font-semibold">
-              Results Preview
-            </h2>
+          {previewRows.length > 0 ? (
+            <table className="w-full text-xs">
 
-            <span className="text-xs text-slate-500">
-              {previewRows.length} rows
-            </span>
+              <thead>
+                <tr>
+                  {Object.keys(previewRows[0]).map((col) => (
+                    <th
+                      key={col}
+                      className="text-left px-2 py-2"
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-          </div>
+              <tbody>
+                {previewRows
+                  .slice(0, 8)
+                  .map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {Object.values(row).map(
+                        (value, index) => (
+                          <td
+                            key={index}
+                            className="px-2 py-2"
+                          >
+                            {String(value)}
+                          </td>
+                        )
+                      )}
+                    </tr>
+                  ))}
+              </tbody>
 
-          <div className="overflow-auto max-h-[350px]">
-
-            {previewRows.length > 0 ? (
-              <table className="w-full text-sm">
-
-                <thead>
-
-                  <tr className="border-b">
-
-                    {Object.keys(previewRows[0]).map((col) => (
-                      <th
-                        key={col}
-                        className="text-left px-3 py-2"
-                      >
-                        {col}
-                      </th>
-                    ))}
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {previewRows
-                    .slice(0, 10)
-                    .map((row, rowIndex) => (
-                      <tr
-                        key={rowIndex}
-                        className="border-b hover:bg-slate-50"
-                      >
-                        {Object.values(row).map(
-                          (value, index) => (
-                            <td
-                              key={index}
-                              className="px-3 py-2"
-                            >
-                              {String(value)}
-                            </td>
-                          )
-                        )}
-                      </tr>
-                    ))}
-
-                </tbody>
-
-              </table>
-            ) : (
-              <p className="text-slate-500">
-                No preview available
-              </p>
-            )}
-
-          </div>
+            </table>
+          ) : (
+            <p className="text-xs text-slate-500">
+              No preview available
+            </p>
+          )}
 
         </div>
 
-        <div className="col-span-4 bg-white rounded-2xl p-4">
+      </div>
 
-          <h2 className="text-lg font-semibold mb-4">
+      <div className="bg-white rounded-xl p-3">
+
+        <div className="flex items-center justify-between mb-2">
+
+          <h2 className="text-sm font-semibold">
             Generated SQL
           </h2>
 
-          <pre className="bg-slate-900 text-slate-100 rounded-xl p-4 text-xs overflow-auto h-[250px]">
-{generatedSql}
-          </pre>
-
           <Button
             variant="secondary"
-            className="w-full mt-4"
-            onClick={copySql}
+            onClick={() =>
+              navigator.clipboard.writeText(generatedSql)
+            }
           >
-            <div className="flex items-center gap-2">
-              <Copy size={14} />
-              Copy SQL
-            </div>
+            <Copy size={14} />
           </Button>
 
         </div>
+
+        <pre className="bg-slate-900 text-slate-100 text-xs rounded-lg p-3 overflow-auto h-[120px]">
+{generatedSql}
+        </pre>
 
       </div>
 
