@@ -148,8 +148,8 @@ CONVERSATION
 
     const classificationResponse =
       await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0,
+        model: "llama-3.1-8b-instant",
+        temperature: 0.3,
         messages: [
           {
             role: "user",
@@ -209,8 +209,8 @@ Do not mention SQL.
 
       const response =
         await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          temperature: 0.4,
+          model: "llama-3.1-8b-instant",
+          temperature: 0.3,
           messages: [
             {
               role: "user",
@@ -284,8 +284,8 @@ Do not generate SQL.
 
       const response =
         await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          temperature: 0.5,
+          model: "llama-3.1-8b-instant",
+          temperature: 0.3,
           messages: [
             {
               role: "user",
@@ -311,8 +311,8 @@ Do not generate SQL.
       if (intent.includes("CONVERSATION")) {
   const response =
     await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.6,
+      model: "llama-3.1-8b-instant",
+      temperature: 0.3,
       messages: [
         {
           role: "system",
@@ -380,8 +380,8 @@ Rules:
 
     const sqlResponse =
       await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0,
+        model: "llama-3.1-8b-instant",
+        temperature: 0.3,
         messages: [
           {
             role: "user",
@@ -454,7 +454,7 @@ Instructions:
 
     const answerResponse =
       await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.1-8b-instant",
         temperature: 0.3,
         messages: [
           {
