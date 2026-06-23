@@ -8,7 +8,6 @@ import dashboardRoutes from "./routes/dashboard.routes";
 import documentRoutes from "./routes/document.routes";
 import embeddingRoutes from "./routes/embedding.routes";
 import geminiModelsRoute from "./routes/geminiModels.routes";
-import searchTestRoute from "./routes/searchTest.routes";
 
 
 const app = express();
@@ -44,10 +43,6 @@ app.use("/api/embeddings", embeddingRoutes);
 app.use(
   "/api/gemini-models",
   geminiModelsRoute
-);
-app.use(
-  "/api/search-test",
-  searchTestRoute
 );
 
 
