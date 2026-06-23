@@ -6,6 +6,9 @@ import fs from "fs";
 import { generateTableName } from "../services/tableName";
 import { createTable } from "../services/createTable";
 import { insertRows } from "../services/insertRows";
+import { storeEmbeddings } from "../services/storeEmbeddings";
+
+console.log("UPLOAD ROUTES LOADED");
 
 const router = Router();
 
@@ -14,6 +17,8 @@ const upload = multer({
 });
 
 router.post("/", upload.single("file"), async (req, res) => {
+  console.log("UPLOAD ROUTE HIT");
+
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -26,45 +31,73 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     fs.createReadStream(req.file.path)
       .pipe(csv())
-      .on("data", (data) => results.push(data))
+      .on("data", (data) => {
+        results.push(data);
+      })
       .on("end", async () => {
         try {
           const columns = Object.keys(results[0] || {});
 
-          const tableName = generateTableName(
-            req.file!.originalname
-          );
+          const tableName =
+            generateTableName(
+              req.file!.originalname
+            );
 
           await createTable(
-  tableName,
-  columns
-);
+            tableName,
+            columns
+          );
 
-await insertRows(
-  tableName,
-  results
-);
+          console.log("TABLE CREATED");
 
-       res.json({
-  success: true,
-  message: "Dataset imported successfully",
-  tableName,
-  totalRows: results.length,
-});
+          await insertRows(
+            tableName,
+            results
+          );
+
+          console.log("ROWS INSERTED");
+
+          await storeEmbeddings(
+            tableName,
+            results
+          );
+
+          console.log("EMBEDDINGS STORED");
+
+          return res.json({
+            success: true,
+            message:
+              "Dataset imported successfully",
+            tableName,
+            totalRows: results.length,
+            embeddingsCreated: Math.min(
+              results.length,
+              500
+            ),
+          });
         } catch (error) {
           console.error(error);
 
-          res.status(500).json({
+          return res.status(500).json({
             success: false,
-            message: "Error creating table",
+            message:
+              "Error creating table",
           });
         }
-      });
+      })
+      .on("error", (error) => {
+        console.error(error);
 
+        return res.status(500).json({
+          success: false,
+          message:
+            "Error processing CSV",
+        });
+      });
   } catch (error) {
     console.error(error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error reading CSV",
     });

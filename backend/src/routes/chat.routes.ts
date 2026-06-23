@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { groq } from "../services/groq";
 import { pool } from "../db/database";
+import { searchEmbeddings } from "../services/searchEmbeddings";
 
 const router = Router();
 
@@ -98,6 +99,31 @@ ${JSON.stringify(sampleRows, null, 2)}
           `${m.role.toUpperCase()}: ${m.content}`
       )
       .join("\n");
+      let ragContext = "";
+
+try {
+  const ragResults =
+    await searchEmbeddings(
+      dataset,
+      question
+    );
+
+  ragContext = ragResults
+    .map(
+      (item: any) =>
+        item.chunk_text
+    )
+    .join("\n\n");
+
+  console.log(
+    "RAG Chunks Retrieved:",
+    ragResults.length
+  );
+} catch (error) {
+  console.log(
+    "RAG search skipped"
+  );
+}
 
     // =====================================================
     // INTENT CLASSIFICATION
@@ -239,6 +265,10 @@ Dataset Context:
 
 ${datasetContext}
 
+Relevant Dataset Information:
+
+${ragContext}
+
 Conversation:
 
 ${historyText}
@@ -299,6 +329,10 @@ You are a senior business analyst.
 Dataset Context:
 
 ${datasetContext}
+
+Relevant Dataset Information:
+
+${ragContext}
 
 Conversation:
 
@@ -370,6 +404,10 @@ You are an expert PostgreSQL analyst.
 Dataset Context:
 
 ${datasetContext}
+
+Relevant Dataset Information:
+
+${ragContext}
 
 Conversation:
 

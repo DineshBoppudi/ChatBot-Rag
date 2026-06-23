@@ -4,26 +4,58 @@ export async function insertRows(
   tableName: string,
   rows: any[]
 ) {
-  for (const row of rows) {
+  try {
+    console.log("INSERT ROWS STARTED");
 
-    const columns = Object.keys(row)
-      .map((col) =>
-        `"${col.toLowerCase().replace(/\s+/g, "_")}"`
-      )
-      .join(",");
+    let rowNumber = 0;
 
-    const values = Object.values(row);
+    for (const row of rows) {
+      rowNumber++;
 
-    const placeholders = values
-      .map((_, index) => `$${index + 1}`)
-      .join(",");
+      console.log(
+        `Inserting row ${rowNumber}/${rows.length}`
+      );
 
-    const query = `
-      INSERT INTO "${tableName}"
-      (${columns})
-      VALUES (${placeholders})
-    `;
+      const columns = Object.keys(row)
+        .map(
+          (col) =>
+            `"${col
+              .toLowerCase()
+              .replace(/\s+/g, "_")}"`
+        )
+        .join(",");
 
-    await pool.query(query, values);
+      const values = Object.values(row);
+
+      const placeholders = values
+        .map((_, index) => `$${index + 1}`)
+        .join(",");
+
+      const query = `
+        INSERT INTO "${tableName}"
+        (${columns})
+        VALUES (${placeholders})
+      `;
+
+      await pool.query(query, values);
+    }
+
+    console.log("INSERT ROWS COMPLETED");
+  } catch (error: any) {
+    console.error("INSERT ROWS FAILED");
+    console.error(
+      "Failed at row:",
+      rowNumber
+    );
+    console.error(error);
+
+    if (error?.message) {
+      console.error(
+        "MESSAGE:",
+        error.message
+      );
+    }
+
+    throw error;
   }
 }

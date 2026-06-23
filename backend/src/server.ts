@@ -7,6 +7,10 @@ import chatRoutes from "./routes/chat.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import documentRoutes from "./routes/document.routes";
 import embeddingRoutes from "./routes/embedding.routes";
+import geminiModelsRoute from "./routes/geminiModels.routes";
+import searchTestRoute from "./routes/searchTest.routes";
+
+
 const app = express();
 
 app.use(cors());
@@ -37,6 +41,15 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/embeddings", embeddingRoutes);
+app.use(
+  "/api/gemini-models",
+  geminiModelsRoute
+);
+app.use(
+  "/api/search-test",
+  searchTestRoute
+);
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
