@@ -45,6 +45,12 @@ app.use(
   geminiModelsRoute
 );
 
+app.get("/test-dashboard", (req, res) => {
+  res.json({
+    message: "NEW SERVER VERSION",
+    commit: "a038558",
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
