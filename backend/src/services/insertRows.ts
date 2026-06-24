@@ -4,10 +4,10 @@ export async function insertRows(
   tableName: string,
   rows: any[]
 ) {
+  let rowNumber = 0;
+
   try {
     console.log("INSERT ROWS STARTED");
-
-    let rowNumber = 0;
 
     for (const row of rows) {
       rowNumber++;
