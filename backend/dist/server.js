@@ -32,7 +32,7 @@ app.get("/health", async (req, res) => {
         });
     }
 });
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.use("/api/upload", upload_routes_1.default);
 app.use("/api/datasets", dataset_routes_1.default);
 app.use("/api/chat", chat_routes_1.default);
