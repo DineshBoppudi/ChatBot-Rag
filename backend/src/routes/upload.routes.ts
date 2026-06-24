@@ -3,6 +3,7 @@ import multer from "multer";
 import csv from "csv-parser";
 import fs from "fs";
 
+import { pool } from "../db/database";
 import { generateTableName } from "../services/tableName";
 import { createTable } from "../services/createTable";
 import { insertRows } from "../services/insertRows";
@@ -38,10 +39,34 @@ router.post("/", upload.single("file"), async (req, res) => {
         try {
           const columns = Object.keys(results[0] || {});
 
-          const tableName =
-            generateTableName(
-              req.file!.originalname
-            );
+          const tableName = generateTableName(
+            req.file!.originalname
+          );
+
+          // ==========================================
+          // CHECK IF DATASET ALREADY EXISTS
+          // ==========================================
+
+          const existingTable = await pool.query(
+            `
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = $1
+            `,
+            [tableName]
+          );
+
+          if (existingTable.rows.length > 0) {
+            return res.status(400).json({
+              success: false,
+              message: `Dataset "${tableName}" already exists`,
+            });
+          }
+
+          // ==========================================
+          // CREATE TABLE
+          // ==========================================
 
           await createTable(
             tableName,
@@ -50,12 +75,20 @@ router.post("/", upload.single("file"), async (req, res) => {
 
           console.log("TABLE CREATED");
 
+          // ==========================================
+          // INSERT ROWS
+          // ==========================================
+
           await insertRows(
             tableName,
             results
           );
 
           console.log("ROWS INSERTED");
+
+          // ==========================================
+          // CREATE EMBEDDINGS
+          // ==========================================
 
           await storeEmbeddings(
             tableName,
@@ -75,13 +108,13 @@ router.post("/", upload.single("file"), async (req, res) => {
               500
             ),
           });
+
         } catch (error) {
           console.error(error);
 
           return res.status(500).json({
             success: false,
-            message:
-              "Error creating table",
+            message: "Error creating table",
           });
         }
       })
@@ -94,6 +127,7 @@ router.post("/", upload.single("file"), async (req, res) => {
             "Error processing CSV",
         });
       });
+
   } catch (error) {
     console.error(error);
 
