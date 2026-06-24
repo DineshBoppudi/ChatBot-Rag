@@ -4,6 +4,7 @@ import { groq } from "../services/groq";
 
 const router = Router();
 
+/* Dashboard Summary */
 router.get("/", async (req, res) => {
   try {
     const tablesResult = await pool.query(`
@@ -25,7 +26,7 @@ router.get("/", async (req, res) => {
 
         totalRows += Number(result.rows[0].count);
       } catch {
-        // skip system tables
+        // skip
       }
     }
 
@@ -44,43 +45,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:dataset", async (req, res) => {
-  try {
-    const { dataset } = req.params;
-
-    const rowCountResult = await pool.query(
-      `SELECT COUNT(*) FROM "${dataset}"`
-    );
-
-    const columnsResult = await pool.query(
-      `
-      SELECT
-        column_name,
-        data_type
-      FROM information_schema.columns
-      WHERE table_name = $1
-      `,
-      [dataset]
-    );
-
-    res.json({
-      dataset,
-      totalRows: Number(
-        rowCountResult.rows[0].count
-      ),
-      totalColumns:
-        columnsResult.rows.length,
-      columns: columnsResult.rows,
-    });
-  } catch (error: any) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+/* KPIs */
 router.get("/:dataset/kpis", async (req, res) => {
   try {
     const { dataset } = req.params;
@@ -128,113 +93,36 @@ router.get("/:dataset/kpis", async (req, res) => {
       FROM "${dataset}"
     `);
 
-    return res.json(result.rows[0]);
+    res.json(result.rows[0]);
   } catch (error: any) {
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-router.get("/:dataset/top-products", async (req, res) => {
-  try {
-    const { dataset } = req.params;
-
-    const result = await pool.query(`
-  SELECT
-    LEFT(name,50) as name,
-
-    NULLIF(
-      REPLACE(
-        REPLACE(
-          COALESCE(discount_price,''),
-          '₹',
-          ''
-        ),
-        ',',
-        ''
-      ),
-      ''
-    )::NUMERIC as price
-
-  FROM "${dataset}"
-
-  WHERE discount_price IS NOT NULL
-  AND discount_price <> ''
-
-  ORDER BY price DESC
-
-  LIMIT 5
-`);
-
-    res.json(result.rows);
-  } catch (error: any) {
-    console.error(error);
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
-router.get("/:dataset/insights", async (req, res) => {
+
+/* Top Products */
+router.get("/:dataset/top-products", async (req, res) => {
   try {
     const { dataset } = req.params;
 
-   const kpiResult = await pool.query(`
-  SELECT
-    COUNT(*) as total_rows,
-
-    AVG(
-      NULLIF(
-        REPLACE(
-          REPLACE(
-            COALESCE(discount_price,''),
-            '₹',
-            ''
-          ),
-          ',',
-          ''
-        ),
-        ''
-      )::NUMERIC
-    ) as avg_price,
-
-    MAX(
-      NULLIF(
-        REPLACE(
-          REPLACE(
-            COALESCE(discount_price,''),
-            '₹',
-            ''
-          ),
-          ',',
-          ''
-        ),
-        ''
-      )::NUMERIC
-    ) as max_price
-
-  FROM "${dataset}"
-`);
-
-    const topProducts = await pool.query(`
+    const result = await pool.query(`
       SELECT
         LEFT(name,50) as name,
 
-        CAST(
+        NULLIF(
           REPLACE(
             REPLACE(
-              COALESCE(discount_price,'0'),
+              COALESCE(discount_price,''),
               '₹',
               ''
             ),
             ',',
             ''
-          ) AS NUMERIC
-        ) as price
+          ),
+          ''
+        )::NUMERIC as price
 
       FROM "${dataset}"
 
@@ -246,19 +134,90 @@ router.get("/:dataset/insights", async (req, res) => {
       LIMIT 5
     `);
 
-    const prompt = `
-You are a senior business analyst.
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
+/* Category Distribution */
+router.get("/:dataset/category-distribution", async (req, res) => {
+  try {
+    const { dataset } = req.params;
+
+    const columnsResult = await pool.query(
+      `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = $1
+      `,
+      [dataset]
+    );
+
+    const columnNames = columnsResult.rows.map(
+      (c) => c.column_name
+    );
+
+    let categoryColumn = "";
+
+    if (columnNames.includes("sub_category")) {
+      categoryColumn = "sub_category";
+    } else if (
+      columnNames.includes("main_category")
+    ) {
+      categoryColumn = "main_category";
+    } else {
+      categoryColumn =
+        columnNames.find(
+          (c) =>
+            c !== "id" &&
+            c !== "name"
+        ) || "";
+    }
+
+    if (!categoryColumn) {
+      return res.json([]);
+    }
+
+    const result = await pool.query(`
+      SELECT
+        "${categoryColumn}" as name,
+        COUNT(*)::int as value
+      FROM "${dataset}"
+      GROUP BY "${categoryColumn}"
+      ORDER BY value DESC
+      LIMIT 8
+    `);
+
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+/* AI Insights */
+router.get("/:dataset/insights", async (req, res) => {
+  try {
+    const { dataset } = req.params;
+
+    const kpiResult = await pool.query(`
+      SELECT COUNT(*) as total_rows
+      FROM "${dataset}"
+    `);
+
+    const prompt = `
 Dataset: ${dataset}
 
 KPIs:
-${JSON.stringify(kpiResult.rows[0], null, 2)}
-
-Top Products:
-${JSON.stringify(topProducts.rows, null, 2)}
+${JSON.stringify(kpiResult.rows[0])}
 
 Generate 5 concise business insights.
-
 Return only bullet points.
 `;
 
@@ -274,28 +233,26 @@ Return only bullet points.
         ],
       });
 
-    return res.json({
+    res.json({
       insights:
         response.choices[0].message.content,
     });
   } catch (error: any) {
-    console.error(error);
-
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
+
+/* Dataset Profile */
 router.get("/:dataset/profile", async (req, res) => {
   try {
     const { dataset } = req.params;
 
     const columnsResult = await pool.query(
       `
-      SELECT
-        column_name,
-        data_type
+      SELECT column_name,data_type
       FROM information_schema.columns
       WHERE table_name = $1
       `,
@@ -304,28 +261,12 @@ router.get("/:dataset/profile", async (req, res) => {
 
     const rowCount = await pool.query(
       `SELECT COUNT(*) FROM "${dataset}"`
-    );
-
-    const columns = columnsResult.rows;
-
-    const numericColumns = columns.filter(
-      (c) =>
-        c.data_type.includes("int") ||
-        c.data_type.includes("numeric") ||
-        c.data_type.includes("double")
-    );
-
-    const textColumns = columns.filter(
-      (c) =>
-        c.data_type.includes("text") ||
-        c.data_type.includes("character")
     );
 
     res.json({
       rows: Number(rowCount.rows[0].count),
-      columns: columns.length,
-      numericColumns,
-      textColumns,
+      columns: columnsResult.rows.length,
+      schema: columnsResult.rows,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -334,48 +275,36 @@ router.get("/:dataset/profile", async (req, res) => {
     });
   }
 });
-router.get("/:dataset/profile", async (req, res) => {
+
+/*
+  IMPORTANT:
+  KEEP THIS ROUTE LAST
+*/
+router.get("/:dataset", async (req, res) => {
   try {
     const { dataset } = req.params;
 
+    const rowCountResult = await pool.query(
+      `SELECT COUNT(*) FROM "${dataset}"`
+    );
+
     const columnsResult = await pool.query(
       `
-      SELECT
-        column_name,
-        data_type
+      SELECT column_name,data_type
       FROM information_schema.columns
       WHERE table_name = $1
-      ORDER BY ordinal_position
       `,
       [dataset]
     );
 
-    const rowCount = await pool.query(
-      `SELECT COUNT(*) FROM "${dataset}"`
-    );
-
-    const columns = columnsResult.rows;
-
-    const numericColumns = columns.filter(
-      (c) =>
-        c.data_type.includes("int") ||
-        c.data_type.includes("numeric") ||
-        c.data_type.includes("double")
-    );
-
-    const textColumns = columns.filter(
-      (c) =>
-        c.data_type.includes("text") ||
-        c.data_type.includes("character")
-    );
-
     res.json({
-      rows: Number(
-        rowCount.rows[0].count
+      dataset,
+      totalRows: Number(
+        rowCountResult.rows[0].count
       ),
-      columns: columns.length,
-      numericColumns,
-      textColumns,
+      totalColumns:
+        columnsResult.rows.length,
+      columns: columnsResult.rows,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -384,75 +313,5 @@ router.get("/:dataset/profile", async (req, res) => {
     });
   }
 });
-router.get(
-  "/:dataset/category-distribution",
-  async (req, res) => {
-    try {
-      const { dataset } = req.params;
-
-      const columnsResult =
-        await pool.query(
-          `
-          SELECT column_name
-          FROM information_schema.columns
-          WHERE table_name = $1
-          `,
-          [dataset]
-        );
-
-      const columnNames =
-        columnsResult.rows.map(
-          (c) => c.column_name
-        );
-
-      let categoryColumn = "";
-
-      if (
-        columnNames.includes(
-          "sub_category"
-        )
-      ) {
-        categoryColumn =
-          "sub_category";
-      } else if (
-        columnNames.includes(
-          "main_category"
-        )
-      ) {
-        categoryColumn =
-          "main_category";
-      } else {
-        categoryColumn =
-          columnNames.find(
-            (c) =>
-              c !== "id" &&
-              c !== "name"
-          ) || "";
-      }
-
-      if (!categoryColumn) {
-        return res.json([]);
-      }
-
-      const result =
-        await pool.query(`
-          SELECT
-            "${categoryColumn}" as name,
-            COUNT(*)::int as value
-          FROM "${dataset}"
-          GROUP BY "${categoryColumn}"
-          ORDER BY value DESC
-          LIMIT 8
-        `);
-
-      res.json(result.rows);
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-);
 
 export default router;
