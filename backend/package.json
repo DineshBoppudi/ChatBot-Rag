@@ -1,11 +1,11 @@
 {
   "name": "ai-data-analyst-backend",
   "version": "0.1.0",
-  "main": "dist/index.js",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@google/genai": "^2.9.0",

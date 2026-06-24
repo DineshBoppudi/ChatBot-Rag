@@ -32,7 +32,7 @@ app.get("/health", async (req, res) => {
         });
     }
 });
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 app.use("/api/upload", upload_routes_1.default);
 app.use("/api/datasets", dataset_routes_1.default);
 app.use("/api/chat", chat_routes_1.default);
@@ -40,6 +40,12 @@ app.use("/api/dashboard", dashboard_routes_1.default);
 app.use("/api/documents", document_routes_1.default);
 app.use("/api/embeddings", embedding_routes_1.default);
 app.use("/api/gemini-models", geminiModels_routes_1.default);
+app.get("/version", (req, res) => {
+    res.json({
+        version: "dashboard-test-v1",
+        time: new Date(),
+    });
+});
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
